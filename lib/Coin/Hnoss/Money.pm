@@ -2,7 +2,7 @@ package Coin::Hnoss::Money;
 use strict;
 use warnings;
 
-our $VERSION = '0.004';
+our $VERSION = '0.004_01';
 
 use Carp qw(croak);
 use Math::BigInt;
@@ -103,7 +103,8 @@ sub divide_with_remainder {
     }
 
     my $amount = $self->{amount};
-    # bdiv returns ($quotient, $remainder) in list context.
+    # bdiv returns ($quotient, $remainder) in list context,
+    # using FLOOR division (like Python's //).
     my ($q, $r) = $amount->copy->bdiv($d->copy);
 
     return (
@@ -188,14 +189,14 @@ Coin::Hnoss::Money - Immutable monetary value object
     my $a = Coin::Hnoss::Money->new(500, 'USD');
     my $b = Coin::Hnoss::Money->new(250, 'USD');
 
-    my $sum = $a->add($b);            # 750 USD
-    my $dif = $a->subtract($b);       # 250 USD
-    my $twice = $a->multiply(2);      # 1000 USD
-    my $half = $a->divide(2);         # 250 USD
-    my ($q, $r) = $a->divide_with_remainder(3);  # 166 USD, 2 USD
+    my $sum    = $a->add($b);            # 750 USD
+    my $dif    = $a->subtract($b);       # 250 USD
+    my $twice  = $a->multiply(2);        # 1000 USD
+    my $half   = $a->divide(2);          # 250 USD
+    my ($q, $r) = $a->divide_with_remainder(3);   # 166 USD, 2 USD
 
-    my $neg = $a->negate;             # -500 USD
-    my $pos = $neg->abs;              # 500 USD
+    my $neg = $a->negate;                # -500 USD
+    my $pos = $neg->abs;                 # 500 USD
 
 =head1 DESCRIPTION
 
@@ -209,15 +210,29 @@ unit (e.g. cents for USD). No floating-point arithmetic is used.
 
     Coin::Hnoss::Money->new($amount, $currency)
 
+C<$amount> must be an integer (or integer string, or C<Math::BigInt>).
+C<$currency> may be a C<Coin::Hnoss::Currency> object or a 3-letter string
+that will be wrapped into one.
+
 =head2 amount
+
+Returns a fresh C<Math::BigInt> with the amount. The caller may mutate this
+copy freely; it does not affect the original.
 
 =head2 currency
 
+Returns the C<Coin::Hnoss::Currency> object.
+
 =head2 as_string
+
+Returns C<< "<amount> <code>" >>, e.g. C<"500 USD">.
 
 =head2 equals
 
-See L<Coin::Hnoss::Money/"new"> for the base object; these are unchanged.
+    $m1->equals($m2);
+
+True only if both are C<Coin::Hnoss::Money> with the same currency and the
+same amount.
 
 =head2 add
 
@@ -243,16 +258,32 @@ Returns a new C<Coin::Hnoss::Money>.
 
     my $half = $a->divide(2);
 
-Integer (truncating toward zero) division. Returns a new
-C<Coin::Hnoss::Money>. For access to the remainder, use
-C<divide_with_remainder>.
+Integer division using B<floor> semantics (like Python's C<//>): the
+quotient is rounded toward negative infinity, and the remainder carries
+the sign of the divisor. Returns a new C<Coin::Hnoss::Money>.
+
+For positive amounts this matches truncation. For negative amounts it
+differs: C<< Money->new(-500, 'USD')->divide(3) >> returns C<-167 USD>,
+not C<-166 USD>.
+
+For access to the remainder, use C<divide_with_remainder>.
 
 =head2 divide_with_remainder
 
     my ($q, $r) = $a->divide_with_remainder(3);
 
-Returns a two-element list: quotient and remainder, both C<Coin::Hnoss::Money>
-in the same currency.
+Returns a two-element list: quotient and remainder, both
+C<Coin::Hnoss::Money> in the same currency.
+
+The invariant C<< q * divisor + r == original >> holds exactly. Division
+uses floor semantics (matching C<Math::BigInt::bdiv> and Python's
+C<divmod>), so the remainder always has the same sign as the divisor:
+
+    Money->new(-500, 'USD')->divide_with_remainder(3)
+        # (-167 USD, 1 USD)   because -167*3 + 1 == -500
+
+    Money->new( 500, 'USD')->divide_with_remainder(-3)
+        # (-167 USD, -1 USD)  because -167*-3 + -1 == 500
 
 =head2 negate
 
@@ -270,6 +301,10 @@ Returns a new C<Coin::Hnoss::Money> with the absolute amount.
 
 Arithmetic errors (currency mismatch, division by zero, non-integer
 factors) die with a L<Coin::Hnoss::Exception>.
+
+=head1 OPERATORS
+
+String context yields C<as_string()>. C<eq>/C<ne> compare string forms.
 
 =head1 LICENSE
 

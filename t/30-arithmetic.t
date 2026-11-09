@@ -24,28 +24,47 @@ is($usd500->as_string, '500 USD', 'original unchanged after subtract');
 
 # --- multiply ----------------------------------------------------------------
 
-is($usd250->multiply(2)->as_string, '500 USD', 'multiply by int');
-is($usd250->multiply('3')->as_string, '750 USD', 'multiply by int string');
-is($usd250->multiply(0)->as_string, '0 USD', 'multiply by zero');
-is($usd250->multiply(-1)->as_string, '-250 USD', 'multiply by negative');
+is($usd250->multiply(2)->as_string,   '500 USD',  'multiply by int');
+is($usd250->multiply('3')->as_string, '750 USD',  'multiply by int string');
+is($usd250->multiply(0)->as_string,   '0 USD',    'multiply by zero');
+is($usd250->multiply(-1)->as_string,  '-250 USD', 'multiply by negative');
 
-# --- divide ------------------------------------------------------------------
+# --- divide (floor semantics) ------------------------------------------------
 
-is($usd500->divide(2)->as_string, '250 USD', 'divide exact');
-is($usd500->divide(3)->as_string, '166 USD', 'divide truncates toward zero');
+is($usd500->divide(2)->as_string,  '250 USD', 'divide exact');
+is($usd500->divide(3)->as_string,  '166 USD', 'divide floors (positive: same as trunc)');
 is($usd250->divide(-2)->as_string, '-125 USD', 'divide by negative');
 
-# --- divide_with_remainder ---------------------------------------------------
+# --- divide_with_remainder, positive dividend --------------------------------
 
 my ($q, $r) = $usd500->divide_with_remainder(3);
 is($q->as_string, '166 USD', 'quotient');
 is($r->as_string, '2 USD',   'remainder');
 
-# Negative dividend: BigInt's bdiv truncates toward zero
+# --- divide_with_remainder, negative dividend --------------------------------
+# Math::BigInt::bdiv uses FLOOR division (like Python's //):
+#   -500 = -167 * 3 + 1
+# so quotient = -167 and remainder = 1.
+
 my $neg = Coin::Hnoss::Money->new(-500, 'USD');
 my ($qn, $rn) = $neg->divide_with_remainder(3);
-is($qn->as_string, '-166 USD', 'negative dividend quotient');
-is($rn->as_string, '-2 USD',   'negative dividend remainder');
+is($qn->as_string, '-167 USD', 'negative dividend quotient (floor)');
+is($rn->as_string, '1 USD',    'negative dividend remainder (floor)');
+
+# Invariant: q * d + r == original
+is(
+    $qn->multiply(3)->add($rn)->as_string,
+    '-500 USD',
+    'invariant: q*d + r == original',
+);
+
+# --- divide_with_remainder, negative divisor ---------------------------------
+# 500 = -167 * -3 + -1
+# so quotient = -167 and remainder = -1 (sign of divisor).
+
+my ($qd, $rd) = $usd500->divide_with_remainder(-3);
+is($qd->as_string, '-167 USD', 'positive dividend, negative divisor: quotient');
+is($rd->as_string, '-1 USD',   'positive dividend, negative divisor: remainder');
 
 # --- negate / abs ------------------------------------------------------------
 
