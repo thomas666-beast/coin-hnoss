@@ -2,7 +2,7 @@ package Coin::Hnoss::Money;
 use strict;
 use warnings;
 
-our $VERSION = '0.006';
+our $VERSION = '0.006_02';
 
 use Carp qw(croak);
 use Math::BigInt;
@@ -103,8 +103,6 @@ sub divide_with_remainder {
     }
 
     my $amount = $self->{amount};
-    # bdiv returns ($quotient, $remainder) in list context,
-    # using FLOOR division (like Python's //).
     my ($q, $r) = $amount->copy->bdiv($d->copy);
 
     return (
@@ -151,7 +149,6 @@ sub less_or_equal    { $_[0]->compare($_[1]) <= 0 }
 sub allocate {
     my ($self, @ratios) = @_;
 
-    # Accept allocate([1, 2, 3]) as well as allocate(1, 2, 3).
     @ratios = @{ $ratios[0] }
         if @ratios == 1 && ref $ratios[0] eq 'ARRAY';
 
@@ -170,32 +167,33 @@ sub allocate {
     die Coin::Hnoss::Exception->new('allocate ratios must not all be zero')
         if $sum->is_zero;
 
-    # Base shares: floor(amount * r_i / sum).
-    my $amount = $self->{amount};
+    # Allocate on the absolute value, then flip sign if needed. This makes
+    # allocate(-x) element-wise equal to -allocate(x): the same recipient
+    # indices absorb the rounding, in whichever direction the amount goes.
+    my $sign       = $self->{amount}->is_neg ? -1 : 1;
+    my $abs_amount = $self->{amount}->copy->babs;
+
     my @shares;
     my $allocated = Math::BigInt->new(0);
     for my $r (@r) {
-        my $numerator = $amount->copy->bmul($r);
+        my $numerator = $abs_amount->copy->bmul($r);
         my ($q) = $numerator->bdiv($sum->copy);
         push @shares, $q;
         $allocated->badd($q);
     }
 
-    # Remainder: sign matches amount; distribute one unit at a time,
-    # starting at index 0 and cycling if |remainder| > number of ratios.
-    my $remainder = $amount->copy->bsub($allocated);  # BigInt
-    my $n         = scalar @shares;
-    my $i         = 0;
-    while (!$remainder->is_zero) {
-        if ($remainder->is_neg) {
-            $shares[$i]->bdec;
-            $remainder->binc;
-        }
-        else {
-            $shares[$i]->binc;
-            $remainder->bdec;
-        }
+    # Floor division of non-negative values guarantees 0 <= rem < n.
+    my $rem = $abs_amount->copy->bsub($allocated);
+    my $n   = scalar @shares;
+    my $i   = 0;
+    while (!$rem->is_zero) {
+        $shares[$i]->binc;
+        $rem->bdec;
         $i = ($i + 1) % $n;
+    }
+
+    if ($sign < 0) {
+        $_->bneg for @shares;
     }
 
     return map { ref($self)->new($_, $self->{currency}) } @shares;
@@ -386,10 +384,17 @@ Splits the amount across N recipients according to the given non-negative
 integer ratios. Returns a list of C<Coin::Hnoss::Money> objects whose sum
 is B<exactly> the original amount — no minor units are lost or created.
 
-Each share is C<floor(amount * ratio_i / sum_of_ratios)>, and the leftover
-minor units are handed out one at a time, starting from index 0, in order.
-This makes the distribution deterministic and independent of the order in
-which the ratios are permuted only up to the leftover assignment.
+Each share is C<floor(|amount| * ratio_i / sum_of_ratios)>, and the
+leftover minor units are handed out one at a time, starting from index 0,
+in order. The distribution is B<mirror-symmetric>: for a negative amount,
+the same indices that would receive an extra unit for the positive amount
+instead pay an extra unit, so that
+
+    Money->new(-x, 'USD')->allocate(@ratios)
+
+is element-wise the negation of
+
+    Money->new( x, 'USD')->allocate(@ratios)
 
 Examples:
 
@@ -402,11 +407,11 @@ Examples:
     Money->new(101, 'USD')->allocate(1, 1, 1)
         # 34 USD, 34 USD, 33 USD
 
-Negative amounts are distributed by mirroring: the shares sum to the
-negative amount exactly.
-
     Money->new(-100, 'USD')->allocate(1, 1, 1)
         # -34 USD, -33 USD, -33 USD
+
+    Money->new(-101, 'USD')->allocate(1, 1, 1)
+        # -34 USD, -34 USD, -33 USD
 
 Ratios must be integers >= 0. Not all of them may be zero. Negative
 ratios, non-integers, and an empty ratio list raise

@@ -1,27 +1,25 @@
 Revision history for Coin::Hnoss
 
+0.006_02 2026-11-09
+       - Fix allocate: allocate on |amount| then negate, so that
+         allocate(-x, ...) is the element-wise negation of
+         allocate(x, ...). Previous version put the rounding unit in
+         the opposite direction for negative amounts.
+
 0.006  2026-11-09
        - Add Coin::Hnoss::Money->allocate for splitting money across
-         ratios without losing minor units. Deterministic remainder
-         distribution: extras go to earliest ratios, one at a time.
-         Negative amounts mirror the same distribution.
+         ratios without losing minor units.
 
 0.005  2026-11-09
-       - Add comparison and predicates to Coin::Hnoss::Money:
-         compare, is_zero, is_positive, is_negative, greater_than,
-         greater_or_equal, less_than, less_or_equal.
-       - Overload <=>, ==, !=, <, >, <=, >= to use compare (croak on
-         currency mismatch instead of comparing object addresses).
+       - Add comparison and predicates to Coin::Hnoss::Money.
+       - Overload <=>, ==, !=, <, >, <=, >= to use compare.
 
 0.004_01 2026-11-09
-       - Document that divide / divide_with_remainder use floor semantics
-         (matching Math::BigInt::bdiv and Python's divmod), not truncation
-         toward zero. Fix arithmetic tests to match.
+       - Document floor semantics for divide / divide_with_remainder.
 
 0.004  2026-11-09
        - Add Coin::Hnoss::Exception base class.
-       - Add arithmetic to Coin::Hnoss::Money: add, subtract, multiply,
-         divide, divide_with_remainder, negate, abs.
+       - Add arithmetic to Coin::Hnoss::Money.
 
 0.003  2026-11-09
        - Add Coin::Hnoss::Money (immutable amount + currency value object).
