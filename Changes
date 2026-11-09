@@ -1,14 +1,23 @@
 Revision history for Coin::Hnoss
 
+0.007_01 2026-11-09
+       - Fix Currency::Repository->default: replace invalid `state`
+         (was missing `use feature 'state'`) with a file-scoped lexical.
+
+0.007  2026-11-09
+       - Add Coin::Hnoss::Currency::Repository with a built-in ISO 4217
+         table (active and historical codes) and a configurable fallback
+         exponent.
+       - Add Coin::Hnoss::Currency->exponent and ->subunit, delegating to
+         the default repository.
+
 0.006_02 2026-11-09
        - Fix allocate: allocate on |amount| then negate, so that
          allocate(-x, ...) is the element-wise negation of
-         allocate(x, ...). Previous version put the rounding unit in
-         the opposite direction for negative amounts.
+         allocate(x, ...).
 
 0.006  2026-11-09
-       - Add Coin::Hnoss::Money->allocate for splitting money across
-         ratios without losing minor units.
+       - Add Coin::Hnoss::Money->allocate.
 
 0.005  2026-11-09
        - Add comparison and predicates to Coin::Hnoss::Money.

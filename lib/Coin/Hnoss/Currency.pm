@@ -2,11 +2,12 @@ package Coin::Hnoss::Currency;
 use strict;
 use warnings;
 
-our $VERSION = '0.004';
+our $VERSION = '0.007';
 
 use Carp qw(croak);
 
-# ISO 4217 codes are exactly 3 ASCII letters.
+use Coin::Hnoss::Currency::Repository;
+
 my $CODE_RE = qr/\A[A-Za-z]{3}\z/;
 
 sub new {
@@ -21,16 +22,20 @@ sub new {
     croak "Invalid ISO 4217 currency code '$code'"
         unless $code =~ $CODE_RE;
 
-    my $self = bless {
+    return bless {
         code => uc $code,
     }, $class;
-
-    return $self;
 }
 
-sub code { $_[0]->{code} }
-
+sub code      { $_[0]->{code} }
 sub as_string { $_[0]->{code} }
+
+sub exponent {
+    my ($self) = @_;
+    return Coin::Hnoss::Currency::Repository->default->exponent($self->{code});
+}
+
+sub subunit { $_[0]->exponent }
 
 sub equals {
     my ($self, $other) = @_;
@@ -38,7 +43,6 @@ sub equals {
     return $self->{code} eq $other->{code};
 }
 
-# Allow string overload so "$currency" yields "USD" etc.
 use overload
     '""'     => sub { $_[0]->{code} },
     'eq'     => sub { "$_[0]" eq "$_[1]" },
@@ -66,6 +70,10 @@ Coin::Hnoss::Currency - ISO 4217 currency value object
     $usd->equals($eur); # false
     $usd->equals(Coin::Hnoss::Currency->new('usd')); # true
 
+    $usd->exponent;     # 2  (cents)
+    Coin::Hnoss::Currency->new('JPY')->exponent; # 0
+    Coin::Hnoss::Currency->new('BHD')->exponent; # 3
+
 =head1 DESCRIPTION
 
 An immutable value object representing an ISO 4217 currency code. Codes are
@@ -86,6 +94,19 @@ codes.
 =head2 as_string
 
 Returns the normalized (uppercase) 3-letter code.
+
+=head2 exponent
+
+    my $n = $currency->exponent;
+
+Returns the number of minor-unit digits for this currency, as reported by
+L<Coin::Hnoss::Currency::Repository/default>. Returns the fallback (2 for
+the default repository) for codes not in the ISO table.
+
+=head2 subunit
+
+Alias for C<exponent>. Both names appear in the wild; ISO calls it "minor
+unit", most money libraries call it "subunit" or "exponent".
 
 =head2 equals
 
