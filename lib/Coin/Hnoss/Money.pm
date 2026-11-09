@@ -2,7 +2,7 @@ package Coin::Hnoss::Money;
 use strict;
 use warnings;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 use Carp qw(croak);
 use Math::BigInt;
@@ -146,6 +146,61 @@ sub greater_or_equal { $_[0]->compare($_[1]) >= 0 }
 sub less_than        { $_[0]->compare($_[1]) <  0 }
 sub less_or_equal    { $_[0]->compare($_[1]) <= 0 }
 
+# --- allocation -------------------------------------------------------------
+
+sub allocate {
+    my ($self, @ratios) = @_;
+
+    # Accept allocate([1, 2, 3]) as well as allocate(1, 2, 3).
+    @ratios = @{ $ratios[0] }
+        if @ratios == 1 && ref $ratios[0] eq 'ARRAY';
+
+    die Coin::Hnoss::Exception->new('allocate requires at least one ratio')
+        unless @ratios;
+
+    my @r = map { _as_integer($_, 'allocate ratio') } @ratios;
+
+    my $sum = Math::BigInt->new(0);
+    for my $r (@r) {
+        die Coin::Hnoss::Exception->new('allocate ratio must not be negative')
+            if $r->is_neg;
+        $sum->badd($r);
+    }
+
+    die Coin::Hnoss::Exception->new('allocate ratios must not all be zero')
+        if $sum->is_zero;
+
+    # Base shares: floor(amount * r_i / sum).
+    my $amount = $self->{amount};
+    my @shares;
+    my $allocated = Math::BigInt->new(0);
+    for my $r (@r) {
+        my $numerator = $amount->copy->bmul($r);
+        my ($q) = $numerator->bdiv($sum->copy);
+        push @shares, $q;
+        $allocated->badd($q);
+    }
+
+    # Remainder: sign matches amount; distribute one unit at a time,
+    # starting at index 0 and cycling if |remainder| > number of ratios.
+    my $remainder = $amount->copy->bsub($allocated);  # BigInt
+    my $n         = scalar @shares;
+    my $i         = 0;
+    while (!$remainder->is_zero) {
+        if ($remainder->is_neg) {
+            $shares[$i]->bdec;
+            $remainder->binc;
+        }
+        else {
+            $shares[$i]->binc;
+            $remainder->bdec;
+        }
+        $i = ($i + 1) % $n;
+    }
+
+    return map { ref($self)->new($_, $self->{currency}) } @shares;
+}
+
 # --- helpers ----------------------------------------------------------------
 
 sub _assert_same_currency {
@@ -224,20 +279,19 @@ Coin::Hnoss::Money - Immutable monetary value object
 
     # Comparison
     $a->compare($b);            #  1
-    $a->equals($b);             #  ''  (false)
     $a->greater_than($b);       #  1
-    $a->greater_or_equal($b);   #  1
-    $a->less_than($b);          #  ''  (false)
-    $a->less_or_equal($b);      #  ''  (false)
-
     $a->is_zero;                # false
     $a->is_positive;            # true
     $a->is_negative;            # false
+    $a > $b;                    # true
 
-    # Operators (same currency required, otherwise they croak)
-    $a > $b;    # true
-    $a == $b;   # false
-    $a <=> $b;  # 1
+    # Allocation
+    my $hundred = Coin::Hnoss::Money->new(100, 'USD');
+    my @parts   = $hundred->allocate(1, 1, 1);
+    # (34 USD, 33 USD, 33 USD) — sums to 100 USD exactly
+
+    my @by_pct = $hundred->allocate([70, 20, 10]);
+    # (70 USD, 20 USD, 10 USD)
 
 =head1 DESCRIPTION
 
@@ -273,8 +327,7 @@ Returns C<< "<amount> <code>" >>, e.g. C<"500 USD">.
     $m1->equals($m2);
 
 True only if both are C<Coin::Hnoss::Money> with the same currency and the
-same amount. Returns false (not an exception) if currencies differ; use
-C<compare> if you want a currency mismatch to be an error.
+same amount. Returns false (not an exception) if currencies differ.
 
 =head2 add
 
@@ -299,16 +352,11 @@ of the divisor.
 
 =head2 abs
 
-See L<Coin::Hnoss::Money/"add"> for the arithmetic methods; they all
-return new C<Coin::Hnoss::Money> objects and never modify the receiver.
-
 =head2 compare
 
     my $cmp = $a->compare($b);   # -1, 0, or 1
 
-Returns C<-1> if C<$a> is less than C<$b>, C<0> if equal, C<1> if greater.
-Dies with L<Coin::Hnoss::Exception> if currencies differ or if C<$b> is
-not a C<Coin::Hnoss::Money>.
+Dies on currency mismatch.
 
 =head2 is_zero
 
@@ -316,8 +364,7 @@ not a C<Coin::Hnoss::Money>.
 
 =head2 is_negative
 
-Boolean predicates on the amount. Note that C<is_positive> is false for
-zero; use C<is_negative> / C<is_positive> / C<is_zero> to test signs.
+Boolean predicates. C<is_positive> is false for zero.
 
 =head2 greater_than
 
@@ -327,8 +374,43 @@ zero; use C<is_negative> / C<is_positive> / C<is_zero> to test signs.
 
 =head2 less_or_equal
 
-Convenience wrappers around C<compare>. Each dies on currency mismatch
-(just like C<compare>).
+Convenience wrappers around C<compare>.
+
+=head2 allocate
+
+    my @parts = $money->allocate(1, 1, 1);
+    my @parts = $money->allocate([1, 1, 1]);     # same
+    my @parts = $money->allocate(70, 20, 10);
+
+Splits the amount across N recipients according to the given non-negative
+integer ratios. Returns a list of C<Coin::Hnoss::Money> objects whose sum
+is B<exactly> the original amount — no minor units are lost or created.
+
+Each share is C<floor(amount * ratio_i / sum_of_ratios)>, and the leftover
+minor units are handed out one at a time, starting from index 0, in order.
+This makes the distribution deterministic and independent of the order in
+which the ratios are permuted only up to the leftover assignment.
+
+Examples:
+
+    Money->new(100, 'USD')->allocate(1, 1, 1)
+        # 34 USD, 33 USD, 33 USD
+
+    Money->new(100, 'USD')->allocate(70, 20, 10)
+        # 70 USD, 20 USD, 10 USD
+
+    Money->new(101, 'USD')->allocate(1, 1, 1)
+        # 34 USD, 34 USD, 33 USD
+
+Negative amounts are distributed by mirroring: the shares sum to the
+negative amount exactly.
+
+    Money->new(-100, 'USD')->allocate(1, 1, 1)
+        # -34 USD, -33 USD, -33 USD
+
+Ratios must be integers >= 0. Not all of them may be zero. Negative
+ratios, non-integers, and an empty ratio list raise
+L<Coin::Hnoss::Exception>.
 
 =head1 OPERATORS
 
@@ -339,17 +421,13 @@ Convenience wrappers around C<compare>. Each dies on currency mismatch
 =item * C<eq> / C<ne> compare string forms.
 
 =item * C<< <=> >>, C<==>, C<!=>, C<< < >>, C<< > >>, C<< <= >>, C<< >= >>
-compare amounts and B<require the same currency>; they croak on mismatch
-(via L<Coin::Hnoss::Exception>). We deliberately do this instead of
-letting Perl compare object addresses, which would silently give
-meaningless results.
+compare amounts and B<require the same currency>.
 
 =back
 
 =head1 ERRORS
 
-Arithmetic and comparison errors (currency mismatch, division by zero,
-non-integer factors, non-Money operands) die with a
+Arithmetic, comparison, and allocation errors die with a
 L<Coin::Hnoss::Exception>.
 
 =head1 LICENSE

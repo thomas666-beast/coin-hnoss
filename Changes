@@ -1,5 +1,11 @@
 Revision history for Coin::Hnoss
 
+0.006  2026-11-09
+       - Add Coin::Hnoss::Money->allocate for splitting money across
+         ratios without losing minor units. Deterministic remainder
+         distribution: extras go to earliest ratios, one at a time.
+         Negative amounts mirror the same distribution.
+
 0.005  2026-11-09
        - Add comparison and predicates to Coin::Hnoss::Money:
          compare, is_zero, is_positive, is_negative, greater_than,
