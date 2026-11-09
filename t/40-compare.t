@@ -79,13 +79,14 @@ is($usd500 <=> $usd250,  1, 'operator <=> greater');
 is($usd250 <=> $usd500, -1, 'operator <=> less');
 is($usd500 <=> $usd500b, 0, 'operator <=> equal');
 
-# Operators croak on currency mismatch
-ok(!eval { $usd500 > $eur500; 1 }, 'operator > cross-currency dies');
+# Operators croak on currency mismatch. Assign the comparison to a lexical
+# so Perl doesn't warn about "useless use in void context".
+ok(!eval { my $r = $usd500 >   $eur500; 1 }, 'operator > cross-currency dies');
 like("$@", qr/Cannot compare money in USD and EUR/,
    'operator > mismatch message');
 
-ok(!eval { $usd500 == $eur500; 1 }, 'operator == cross-currency dies');
-ok(!eval { $usd500 <=> $eur500; 1 }, 'operator <=> cross-currency dies');
+ok(!eval { my $r = $usd500 ==  $eur500; 1 }, 'operator == cross-currency dies');
+ok(!eval { my $r = $usd500 <=> $eur500; 1 }, 'operator <=> cross-currency dies');
 
 # --- regressions: previous operators still work ------------------------------
 

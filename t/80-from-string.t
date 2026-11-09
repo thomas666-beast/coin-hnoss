@@ -31,7 +31,6 @@ is(Coin::Hnoss::Money->from_string('0.00',   'USD')->as_string, '0 USD',
    '0.00 USD -> 0');
 
 # --- thousands separators ----------------------------------------------------
-# 1234.56 USD = 123456 minor units
 
 is(Coin::Hnoss::Money->from_string('1234.56',    'USD')->as_string, '123456 USD',
    '1234.56 USD -> 123456');
@@ -42,13 +41,11 @@ is(Coin::Hnoss::Money->from_string('12,345.67',  'USD')->as_string, '1234567 USD
 is(Coin::Hnoss::Money->from_string('1,234,567.89', 'USD')->as_string, '123456789 USD',
    '1,234,567.89 USD -> 123456789');
 
-# with thousands_separator disabled
 is(Coin::Hnoss::Money->from_string('1234.56', 'USD',
         thousands_separator => '')->as_string, '123456 USD',
    '1234.56 USD with grouping disabled -> 123456');
 
 # --- custom separators -------------------------------------------------------
-# 1.234,56 EUR = 123456 minor units
 
 is(Coin::Hnoss::Money->from_string(
         '1.234,56', 'EUR',
@@ -57,7 +54,6 @@ is(Coin::Hnoss::Money->from_string(
     )->as_string, '123456 EUR',
    '1.234,56 EUR with EU separators -> 123456');
 
-# same value without grouping
 is(Coin::Hnoss::Money->from_string(
         '1234,56', 'EUR',
         decimal_mark        => ',',
@@ -66,7 +62,6 @@ is(Coin::Hnoss::Money->from_string(
    '1234,56 EUR with EU decimal mark -> 123456');
 
 # --- exponent-0 currencies ---------------------------------------------------
-# JPY has exponent 0, so only whole units are accepted
 
 is(Coin::Hnoss::Money->from_string('500',   'JPY')->as_string, '500 JPY',
    '500 JPY -> 500');
@@ -78,7 +73,6 @@ is(Coin::Hnoss::Money->from_string('123,456','JPY')->as_string, '123456 JPY',
    '123,456 JPY -> 123456');
 
 # --- exponent-3 currencies ---------------------------------------------------
-# BHD has exponent 3
 
 is(Coin::Hnoss::Money->from_string('0.500',  'BHD')->as_string, '500 BHD',
    '0.500 BHD -> 500');
@@ -96,16 +90,32 @@ is(Coin::Hnoss::Money->from_string('1.2',    'BHD')->as_string, '1200 BHD',
 is(Coin::Hnoss::Money->from_string('0.0500', 'UYW')->as_string, '500 UYW',
    '0.0500 UYW -> 500');
 
+# --- crypto: BTC / TRX / USDT ------------------------------------------------
+
+is(Coin::Hnoss::Money->from_string('0.00000500', 'BTC')->as_string, '500 BTC',
+   '0.00000500 BTC -> 500 satoshi');
+is(Coin::Hnoss::Money->from_string('1.00000000', 'BTC')->as_string,
+   '100000000 BTC', '1.00000000 BTC -> 100,000,000 satoshi');
+
+is(Coin::Hnoss::Money->from_string('1.000000', 'TRX')->as_string,
+   '1000000 TRX', '1.000000 TRX -> 1,000,000 sun');
+
+is(Coin::Hnoss::Money->from_string('1.000000', 'USDT')->as_string,
+   '1000000 USDT', '1.000000 USDT -> 1,000,000 units');
+
 # --- round-trip with format --------------------------------------------------
 
 for my $case (
-    [ 'USD', 500,        '5.00 USD' ],
-    [ 'USD', -5,         '-0.05 USD' ],
-    [ 'USD', 123456,     '1,234.56 USD' ],
-    [ 'JPY', 500,        '500 JPY' ],
-    [ 'JPY', 123456,     '123,456 JPY' ],
-    [ 'BHD', 500,        '0.500 BHD' ],
-    [ 'BHD', 1234,       '1.234 BHD' ],
+    [ 'USD',  500,        '5.00 USD' ],
+    [ 'USD',  -5,         '-0.05 USD' ],
+    [ 'USD',  123456,     '1,234.56 USD' ],
+    [ 'JPY',  500,        '500 JPY' ],
+    [ 'JPY',  123456,     '123,456 JPY' ],
+    [ 'BHD',  500,        '0.500 BHD' ],
+    [ 'BHD',  1234,       '1.234 BHD' ],
+    [ 'BTC',  500,        '0.00000500 BTC' ],
+    [ 'TRX',  1_000_000,  '1.000000 TRX' ],
+    [ 'USDT', 1_000_000,  '1.000000 USDT' ],
 ) {
     my ($code, $minor, $formatted) = @$case;
     my $m = Coin::Hnoss::Money->new($minor, $code);
@@ -158,7 +168,7 @@ like("$@", qr/Currency must be/, 'arrayref currency message');
 
 ok(!eval { Coin::Hnoss::Money->from_string('5', 'U5D'); 1 },
    'bad currency code dies');
-like("$@", qr/Invalid ISO 4217/, 'bad currency code message');
+like("$@", qr/Invalid currency code/, 'bad currency code message');
 
 # --- errors: option validation -----------------------------------------------
 

@@ -59,7 +59,7 @@ ok(!eval { Coin::Hnoss::Money->new(500, []); 1 }, 'arrayref currency rejected');
 like($@, qr/Currency must be/, 'arrayref currency error');
 
 ok(!eval { Coin::Hnoss::Money->new(500, 'U5D'); 1 }, 'bad currency rejected');
-like($@, qr/Invalid ISO 4217/, 'bad currency error');
+like($@, qr/Invalid currency code/, 'bad currency error');
 
 # --- equality ---------------------------------------------------------------
 

@@ -66,8 +66,14 @@ my %HISTORICAL = (
 
 # Documented non-ISO extensions. Kept deliberately small and explicit:
 # anything in here is a conscious departure from "strictly ISO 4217".
+# Symbols may be 3 to 8 letters; the default table currently uses:
+#   BTC  - Bitcoin, exponent 8 (satoshi), 1 BTC = 100,000,000 sat
+#   TRX  - TRON, exponent 6 (sun), 1 TRX = 1,000,000 sun
+#   USDT - Tether USD, exponent 6, on both TRC20 (TRON) and ERC20 (Ethereum)
 my %NON_ISO = (
-    BTC => 8,  # Bitcoin, smallest unit = satoshi (1 BTC = 100_000_000 sat)
+    BTC  => 8,
+    TRX  => 6,
+    USDT => 6,
 );
 
 my %DEFAULT_TABLE = (%ISO_4217, %HISTORICAL, %NON_ISO);
@@ -85,8 +91,8 @@ sub new {
 
     my %copy;
     for my $code (keys %$table) {
-        croak "Currency code '$code' must be 3 uppercase ASCII letters"
-            unless $code =~ /\A[A-Z]{3}\z/;
+        croak "Currency code '$code' must be 3 to 8 uppercase ASCII letters"
+            unless $code =~ /\A[A-Z]{3,8}\z/;
         my $exp = $table->{$code};
         croak "Exponent for '$code' must be a non-negative integer"
             unless defined $exp && !ref $exp && $exp =~ /\A\d+\z/;
@@ -140,7 +146,7 @@ __END__
 
 =head1 NAME
 
-Coin::Hnoss::Currency::Repository - ISO 4217 currency metadata
+Coin::Hnoss::Currency::Repository - currency exponent metadata
 
 =head1 SYNOPSIS
 
@@ -152,6 +158,8 @@ Coin::Hnoss::Currency::Repository - ISO 4217 currency metadata
     $repo->exponent('JPY');   # 0
     $repo->exponent('BHD');   # 3
     $repo->exponent('BTC');   # 8  (non-ISO, documented extension)
+    $repo->exponent('TRX');   # 6  (non-ISO, documented extension)
+    $repo->exponent('USDT');  # 6  (non-ISO, documented extension)
     $repo->exponent('ZZZ');   # 2  (fallback)
 
     $repo->knows('USD');      # 1
@@ -170,7 +178,7 @@ network, or JSON parser is required.
 
 Exponent means "how many digits after the decimal point": USD has exponent
 2 (cents), JPY has exponent 0 (yen), BHD has exponent 3 (fils), BTC has
-exponent 8 (satoshi).
+exponent 8 (satoshi), USDT has exponent 6.
 
 The table covers:
 
@@ -183,11 +191,9 @@ The table covers:
 =item * B<Historical ISO 4217 codes> still common in legacy data
 (BYR, MRO, STD, VEF, ZWL, ...).
 
-=item * B<One documented non-ISO extension>: C<BTC> (Bitcoin), exponent
-8, where the smallest unit is the satoshi (1 BTC = 100,000,000 sat).
-This is the sole departure from "strictly ISO 4217"; it is included
-because it is the one non-ISO code that appears with enough frequency
-in real Perl applications to justify a built-in entry.
+=item * B<Documented non-ISO extensions>, currently B<BTC> (Bitcoin,
+exponent 8, satoshi), B<TRX> (TRON, exponent 6, sun), and B<USDT>
+(Tether USD, exponent 6 on both TRC20/TRON and ERC20/Ethereum).
 
 =back
 
@@ -209,8 +215,9 @@ code; create your own instance with C<new> if you need customization.
 
     my $repo = Coin::Hnoss::Currency::Repository->new(\%table);
 
-Builds a repository from the given hashref mapping uppercase 3-letter codes
-to non-negative integer exponents. Croaks if any key or value is malformed.
+Builds a repository from the given hashref mapping uppercase 3-to-8-letter
+codes to non-negative integer exponents. Croaks if any key or value is
+malformed.
 
 =head1 INSTANCE METHODS
 

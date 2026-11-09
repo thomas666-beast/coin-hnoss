@@ -55,16 +55,10 @@ Or, from a checkout:
 - **Amounts are integers in the currency's smallest unit.** `new(500, 'USD')`
   means 500 cents. No floating-point arithmetic anywhere.
 - **Currency-aware.** Exponent comes from an ISO 4217 table
-(USD has 2, JPY has 0, BHD has 3, UYW has 4), plus one documented
-non-ISO extension: **BTC** (Bitcoin, exponent 8 = satoshi).
-
-- **Cryptocurrencies beyond BTC.** Only BTC is in the built-in table.
-For ETH, LTC, and other assets, pass a custom repository
-(Coin::Hnoss::Currency::Repository->new({...})) or a custom
-Currency object with the exponent you want. BTC is the single
-exception, included because it's the one non-ISO code that shows up
-routinely in Perl code
-
+  (USD has 2, JPY has 0, BHD has 3, UYW has 4), plus a small set of
+  documented non-ISO extensions: **BTC** (Bitcoin, 8 = satoshi),
+  **TRX** (TRON, 6 = sun), and **USDT** (Tether USD, 6 decimals on both
+  TRC20/TRON and ERC20/Ethereum).
 - **Immutable.** All arithmetic returns new objects; originals are untouched.
 - **Exact.** `Math::BigInt` internally, so huge values are safe on 32-bit
   perls too.
@@ -140,6 +134,11 @@ of `allocate(x)`.
   for a 5% tax) — this is by design, to prevent silent precision loss.
 - **Exchange rates / conversion.** Out of scope; the library is about
   individual values, not valuation.
+- **Cryptocurrencies beyond BTC, TRX, and USDT.** The built-in table includes
+  these three as documented non-ISO extensions. For ETH, LTC, XRP, DOGE,
+  and other assets, pass a custom repository
+  (`Coin::Hnoss::Currency::Repository->new({...})`) or a custom `Currency`
+  object with the exponent you want.
 
 ## See also
 

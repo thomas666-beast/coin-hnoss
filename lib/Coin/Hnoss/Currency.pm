@@ -8,7 +8,10 @@ use Carp qw(croak);
 
 use Coin::Hnoss::Currency::Repository;
 
-my $CODE_RE = qr/\A[A-Za-z]{3}\z/;
+# Currency codes are 3 to 8 ASCII letters. The vast majority are the
+# 3-letter ISO 4217 codes (USD, EUR, JPY, ...). A handful of documented
+# non-ISO extensions are longer (BTC, TRX, USDT, USDC, BUSD, ...).
+my $CODE_RE = qr/\A[A-Za-z]{3,8}\z/;
 
 sub new {
     my ($class, $code) = @_;
@@ -19,7 +22,7 @@ sub new {
     croak 'Coin::Hnoss::Currency code must be a plain scalar'
         if ref $code;
 
-    croak "Invalid ISO 4217 currency code '$code'"
+    croak "Invalid currency code '$code': must be 3-8 ASCII letters"
         unless $code =~ $CODE_RE;
 
     return bless {
@@ -54,7 +57,7 @@ __END__
 
 =head1 NAME
 
-Coin::Hnoss::Currency - ISO 4217 currency value object
+Coin::Hnoss::Currency - currency value object
 
 =head1 SYNOPSIS
 
@@ -71,14 +74,22 @@ Coin::Hnoss::Currency - ISO 4217 currency value object
     $usd->equals(Coin::Hnoss::Currency->new('usd')); # true
 
     $usd->exponent;     # 2  (cents)
-    Coin::Hnoss::Currency->new('JPY')->exponent; # 0
-    Coin::Hnoss::Currency->new('BHD')->exponent; # 3
+    Coin::Hnoss::Currency->new('JPY')->exponent;  # 0
+    Coin::Hnoss::Currency->new('BHD')->exponent;  # 3
+    Coin::Hnoss::Currency->new('BTC')->exponent;  # 8  (satoshi)
+    Coin::Hnoss::Currency->new('USDT')->exponent; # 6
 
 =head1 DESCRIPTION
 
-An immutable value object representing an ISO 4217 currency code. Codes are
-validated (exactly three ASCII letters) and normalized to uppercase on
-construction.
+An immutable value object representing a currency code. Codes are validated
+(3 to 8 ASCII letters) and normalized to uppercase on construction.
+
+Almost all codes are ISO 4217 (USD, EUR, JPY, ...), but the object also
+accepts documented non-ISO extensions used by crypto assets (BTC, TRX,
+USDT, ...). Whether a given code is known to the built-in exponent table is
+reported by L<Coin::Hnoss::Currency::Repository/knows>; the value object
+itself is permissive so that custom repositories can supply any code they
+need.
 
 =head1 METHODS
 
@@ -87,13 +98,13 @@ construction.
     my $c = Coin::Hnoss::Currency->new('USD');
 
 Constructs a new currency. Croaks on undefined, non-scalar, or malformed
-codes.
+codes (must match C</\A[A-Za-z]{3,8}\z/>).
 
 =head2 code
 
 =head2 as_string
 
-Returns the normalized (uppercase) 3-letter code.
+Returns the normalized (uppercase) code.
 
 =head2 exponent
 
@@ -101,7 +112,7 @@ Returns the normalized (uppercase) 3-letter code.
 
 Returns the number of minor-unit digits for this currency, as reported by
 L<Coin::Hnoss::Currency::Repository/default>. Returns the fallback (2 for
-the default repository) for codes not in the ISO table.
+the default repository) for codes not in the table.
 
 =head2 subunit
 
