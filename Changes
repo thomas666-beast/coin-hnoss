@@ -1,5 +1,10 @@
 Revision history for Coin::Hnoss
 
+0.004  2026-11-09
+       - Add Coin::Hnoss::Exception base class.
+       - Add arithmetic to Coin::Hnoss::Money: add, subtract, multiply,
+         divide, divide_with_remainder, negate, abs.
+
 0.003  2026-11-09
        - Add Coin::Hnoss::Money (immutable amount + currency value object).
 
