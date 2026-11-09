@@ -2,7 +2,7 @@ package Coin::Hnoss::Exception;
 use strict;
 use warnings;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 use Carp qw(croak);
 use overload '""' => sub { $_[0]->{message} }, fallback => 1;

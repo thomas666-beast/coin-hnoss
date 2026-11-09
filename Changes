@@ -1,5 +1,17 @@
 Revision history for Coin::Hnoss
 
+0.005  2026-11-09
+       - Add comparison and predicates to Coin::Hnoss::Money:
+         compare, is_zero, is_positive, is_negative, greater_than,
+         greater_or_equal, less_than, less_or_equal.
+       - Overload <=>, ==, !=, <, >, <=, >= to use compare (croak on
+         currency mismatch instead of comparing object addresses).
+
+0.004_01 2026-11-09
+       - Document that divide / divide_with_remainder use floor semantics
+         (matching Math::BigInt::bdiv and Python's divmod), not truncation
+         toward zero. Fix arithmetic tests to match.
+
 0.004  2026-11-09
        - Add Coin::Hnoss::Exception base class.
        - Add arithmetic to Coin::Hnoss::Money: add, subtract, multiply,

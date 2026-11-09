@@ -2,7 +2,7 @@ package Coin::Hnoss::Money;
 use strict;
 use warnings;
 
-our $VERSION = '0.004_01';
+our $VERSION = '0.005';
 
 use Carp qw(croak);
 use Math::BigInt;
@@ -129,6 +129,23 @@ sub abs {
     );
 }
 
+# --- comparison -------------------------------------------------------------
+
+sub compare {
+    my ($self, $other) = @_;
+    _assert_same_currency($self, $other, 'compare');
+    return $self->{amount}->bcmp($other->{amount});
+}
+
+sub is_zero     { $_[0]->{amount}->is_zero }
+sub is_positive { !$_[0]->{amount}->is_neg && !$_[0]->{amount}->is_zero }
+sub is_negative { $_[0]->{amount}->is_neg ? 1 : 0 }
+
+sub greater_than     { $_[0]->compare($_[1]) >  0 }
+sub greater_or_equal { $_[0]->compare($_[1]) >= 0 }
+sub less_than        { $_[0]->compare($_[1]) <  0 }
+sub less_or_equal    { $_[0]->compare($_[1]) <= 0 }
+
 # --- helpers ----------------------------------------------------------------
 
 sub _assert_same_currency {
@@ -173,6 +190,13 @@ use overload
     '""'     => sub { $_[0]->as_string },
     'eq'     => sub { $_[0]->as_string eq "$_[1]" },
     'ne'     => sub { $_[0]->as_string ne "$_[1]" },
+    '<=>'    => sub { $_[0]->compare($_[1]) },
+    '=='     => sub { $_[0]->compare($_[1]) == 0 },
+    '!='     => sub { $_[0]->compare($_[1]) != 0 },
+    '<'      => sub { $_[0]->compare($_[1]) <  0 },
+    '>'      => sub { $_[0]->compare($_[1]) >  0 },
+    '<='     => sub { $_[0]->compare($_[1]) <= 0 },
+    '>='     => sub { $_[0]->compare($_[1]) >= 0 },
     fallback => 1;
 
 1;
@@ -189,14 +213,31 @@ Coin::Hnoss::Money - Immutable monetary value object
     my $a = Coin::Hnoss::Money->new(500, 'USD');
     my $b = Coin::Hnoss::Money->new(250, 'USD');
 
+    # Arithmetic
     my $sum    = $a->add($b);            # 750 USD
     my $dif    = $a->subtract($b);       # 250 USD
     my $twice  = $a->multiply(2);        # 1000 USD
     my $half   = $a->divide(2);          # 250 USD
     my ($q, $r) = $a->divide_with_remainder(3);   # 166 USD, 2 USD
+    my $neg    = $a->negate;             # -500 USD
+    my $pos    = $neg->abs;              # 500 USD
 
-    my $neg = $a->negate;                # -500 USD
-    my $pos = $neg->abs;                 # 500 USD
+    # Comparison
+    $a->compare($b);            #  1
+    $a->equals($b);             #  ''  (false)
+    $a->greater_than($b);       #  1
+    $a->greater_or_equal($b);   #  1
+    $a->less_than($b);          #  ''  (false)
+    $a->less_or_equal($b);      #  ''  (false)
+
+    $a->is_zero;                # false
+    $a->is_positive;            # true
+    $a->is_negative;            # false
+
+    # Operators (same currency required, otherwise they croak)
+    $a > $b;    # true
+    $a == $b;   # false
+    $a <=> $b;  # 1
 
 =head1 DESCRIPTION
 
@@ -232,79 +273,84 @@ Returns C<< "<amount> <code>" >>, e.g. C<"500 USD">.
     $m1->equals($m2);
 
 True only if both are C<Coin::Hnoss::Money> with the same currency and the
-same amount.
+same amount. Returns false (not an exception) if currencies differ; use
+C<compare> if you want a currency mismatch to be an error.
 
 =head2 add
 
-    my $sum = $a->add($b);
-
-Requires C<$b> to be a C<Coin::Hnoss::Money> in the same currency. Returns a
-new C<Coin::Hnoss::Money>.
-
 =head2 subtract
-
-    my $diff = $a->subtract($b);
-
-Same currency required. Returns a new C<Coin::Hnoss::Money>.
 
 =head2 multiply
 
-    my $twice = $a->multiply(2);
-
-C<$factor> must be an integer (or integer string, or C<Math::BigInt>).
-Returns a new C<Coin::Hnoss::Money>.
-
 =head2 divide
 
-    my $half = $a->divide(2);
-
-Integer division using B<floor> semantics (like Python's C<//>): the
-quotient is rounded toward negative infinity, and the remainder carries
-the sign of the divisor. Returns a new C<Coin::Hnoss::Money>.
-
-For positive amounts this matches truncation. For negative amounts it
-differs: C<< Money->new(-500, 'USD')->divide(3) >> returns C<-167 USD>,
-not C<-166 USD>.
-
-For access to the remainder, use C<divide_with_remainder>.
+Integer division using B<floor> semantics (like Python's C<//>).
 
 =head2 divide_with_remainder
 
     my ($q, $r) = $a->divide_with_remainder(3);
 
 Returns a two-element list: quotient and remainder, both
-C<Coin::Hnoss::Money> in the same currency.
-
-The invariant C<< q * divisor + r == original >> holds exactly. Division
-uses floor semantics (matching C<Math::BigInt::bdiv> and Python's
-C<divmod>), so the remainder always has the same sign as the divisor:
-
-    Money->new(-500, 'USD')->divide_with_remainder(3)
-        # (-167 USD, 1 USD)   because -167*3 + 1 == -500
-
-    Money->new( 500, 'USD')->divide_with_remainder(-3)
-        # (-167 USD, -1 USD)  because -167*-3 + -1 == 500
+C<Coin::Hnoss::Money> in the same currency. The invariant
+C<< q * divisor + r == original >> holds exactly. Remainder has the sign
+of the divisor.
 
 =head2 negate
 
-    my $neg = $a->negate;
-
-Returns a new C<Coin::Hnoss::Money> with the sign flipped.
-
 =head2 abs
 
-    my $pos = $a->abs;
+See L<Coin::Hnoss::Money/"add"> for the arithmetic methods; they all
+return new C<Coin::Hnoss::Money> objects and never modify the receiver.
 
-Returns a new C<Coin::Hnoss::Money> with the absolute amount.
+=head2 compare
 
-=head1 ERRORS
+    my $cmp = $a->compare($b);   # -1, 0, or 1
 
-Arithmetic errors (currency mismatch, division by zero, non-integer
-factors) die with a L<Coin::Hnoss::Exception>.
+Returns C<-1> if C<$a> is less than C<$b>, C<0> if equal, C<1> if greater.
+Dies with L<Coin::Hnoss::Exception> if currencies differ or if C<$b> is
+not a C<Coin::Hnoss::Money>.
+
+=head2 is_zero
+
+=head2 is_positive
+
+=head2 is_negative
+
+Boolean predicates on the amount. Note that C<is_positive> is false for
+zero; use C<is_negative> / C<is_positive> / C<is_zero> to test signs.
+
+=head2 greater_than
+
+=head2 greater_or_equal
+
+=head2 less_than
+
+=head2 less_or_equal
+
+Convenience wrappers around C<compare>. Each dies on currency mismatch
+(just like C<compare>).
 
 =head1 OPERATORS
 
-String context yields C<as_string()>. C<eq>/C<ne> compare string forms.
+=over
+
+=item * String context (C<"$m">) yields C<as_string()>.
+
+=item * C<eq> / C<ne> compare string forms.
+
+=item * C<< <=> >>, C<==>, C<!=>, C<< < >>, C<< > >>, C<< <= >>, C<< >= >>
+compare amounts and B<require the same currency>; they croak on mismatch
+(via L<Coin::Hnoss::Exception>). We deliberately do this instead of
+letting Perl compare object addresses, which would silently give
+meaningless results.
+
+=back
+
+=head1 ERRORS
+
+Arithmetic and comparison errors (currency mismatch, division by zero,
+non-integer factors, non-Money operands) die with a
+L<Coin::Hnoss::Exception>.
 
 =head1 LICENSE
 
