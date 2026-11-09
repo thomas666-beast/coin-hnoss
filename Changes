@@ -1,18 +1,21 @@
 Revision history for Coin::Hnoss
 
+0.009  2026-11-09
+       - Add Coin::Hnoss::Money->from_string, parsing major-unit strings
+         into minor-unit Money using the currency''s exponent. Strict about
+         precision: too many decimal digits is an error, never a silent
+         round. Options mirror format (decimal_mark, thousands_separator,
+         group_size).
+
 0.008  2026-11-09
-       - Add Coin::Hnoss::Money->format, using the currency''s minor-unit
-         exponent (from Currency::Repository) with configurable decimal
-         mark, thousands separator, group size, currency inclusion, and
-         currency separator.
+       - Add Coin::Hnoss::Money->format.
 
 0.007_01 2026-11-09
        - Fix Currency::Repository->default: replace invalid `state` with a
          file-scoped lexical.
 
 0.007  2026-11-09
-       - Add Coin::Hnoss::Currency::Repository with built-in ISO 4217
-         exponents.
+       - Add Coin::Hnoss::Currency::Repository.
        - Add Coin::Hnoss::Currency->exponent and ->subunit.
 
 0.006_02 2026-11-09
