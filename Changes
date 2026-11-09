@@ -1,20 +1,22 @@
 Revision history for Coin::Hnoss
 
+0.008  2026-11-09
+       - Add Coin::Hnoss::Money->format, using the currency''s minor-unit
+         exponent (from Currency::Repository) with configurable decimal
+         mark, thousands separator, group size, currency inclusion, and
+         currency separator.
+
 0.007_01 2026-11-09
-       - Fix Currency::Repository->default: replace invalid `state`
-         (was missing `use feature 'state'`) with a file-scoped lexical.
+       - Fix Currency::Repository->default: replace invalid `state` with a
+         file-scoped lexical.
 
 0.007  2026-11-09
-       - Add Coin::Hnoss::Currency::Repository with a built-in ISO 4217
-         table (active and historical codes) and a configurable fallback
-         exponent.
-       - Add Coin::Hnoss::Currency->exponent and ->subunit, delegating to
-         the default repository.
+       - Add Coin::Hnoss::Currency::Repository with built-in ISO 4217
+         exponents.
+       - Add Coin::Hnoss::Currency->exponent and ->subunit.
 
 0.006_02 2026-11-09
-       - Fix allocate: allocate on |amount| then negate, so that
-         allocate(-x, ...) is the element-wise negation of
-         allocate(x, ...).
+       - Fix allocate: allocate on |amount| then negate.
 
 0.006  2026-11-09
        - Add Coin::Hnoss::Money->allocate.

@@ -2,7 +2,7 @@ package Coin::Hnoss::Money;
 use strict;
 use warnings;
 
-our $VERSION = '0.006_02';
+our $VERSION = '0.008';
 
 use Carp qw(croak);
 use Math::BigInt;
@@ -48,6 +48,64 @@ sub new {
 sub amount { $_[0]->{amount}->copy }
 sub currency { $_[0]->{currency} }
 sub as_string { $_[0]->{amount}->bstr . ' ' . $_[0]->{currency}->code }
+
+sub format {
+    my ($self, %opts) = @_;
+
+    my $with_currency       = exists $opts{with_currency}
+                                ? $opts{with_currency} : 1;
+    my $currency_separator  = exists $opts{currency_separator}
+                                ? $opts{currency_separator} : ' ';
+    my $decimal_mark        = exists $opts{decimal_mark}
+                                ? $opts{decimal_mark} : '.';
+    my $thousands_separator = exists $opts{thousands_separator}
+                                ? $opts{thousands_separator} : ',';
+    my $group_size          = exists $opts{group_size}
+                                ? $opts{group_size} : 3;
+
+    die Coin::Hnoss::Exception->new('group_size must be a positive integer')
+        unless defined $group_size
+            && !ref $group_size
+            && $group_size =~ /\A[1-9]\d*\z/;
+
+    my $exponent = $self->{currency}->exponent;
+
+    my $amount = $self->{amount};
+    my $sign   = $amount->is_neg ? '-' : '';
+    my $abs    = $amount->copy->babs;
+
+    my ($int_part, $frac_part);
+
+    if ($exponent == 0) {
+        $int_part  = $abs->bstr;
+        $frac_part = '';
+    }
+    else {
+        my $divisor = Math::BigInt->new(10)->bpow($exponent);
+        ($int_part) = $abs->copy->bdiv($divisor->copy);
+        my $rem = $abs->copy->bmod($divisor->copy);
+        $frac_part = $rem->bstr;
+        $frac_part = ('0' x ($exponent - length $frac_part)) . $frac_part
+            if length $frac_part < $exponent;
+    }
+
+    # Insert thousand separators into the integer part.
+    if (length $thousands_separator && length $int_part > $group_size) {
+        my @groups;
+        while (length $int_part > $group_size) {
+            unshift @groups, substr($int_part, -$group_size);
+            $int_part = substr($int_part, 0, length($int_part) - $group_size);
+        }
+        unshift @groups, $int_part;
+        $int_part = join $thousands_separator, @groups;
+    }
+
+    my $result = $sign . $int_part;
+    $result .= $decimal_mark . $frac_part if $exponent > 0;
+    $result .= $currency_separator . $self->{currency}->code if $with_currency;
+
+    return $result;
+}
 
 sub equals {
     my ($self, $other) = @_;
@@ -182,7 +240,6 @@ sub allocate {
         $allocated->badd($q);
     }
 
-    # Floor division of non-negative values guarantees 0 <= rem < n.
     my $rem = $abs_amount->copy->bsub($allocated);
     my $n   = scalar @shares;
     my $i   = 0;
@@ -266,6 +323,13 @@ Coin::Hnoss::Money - Immutable monetary value object
     my $a = Coin::Hnoss::Money->new(500, 'USD');
     my $b = Coin::Hnoss::Money->new(250, 'USD');
 
+    # Formatting
+    $a->format;                      # "5.00 USD"
+    Coin::Hnoss::Money->new(500, 'JPY')->format;   # "500 JPY"
+    Coin::Hnoss::Money->new(500, 'BHD')->format;   # "0.500 BHD"
+    $a->format(with_currency => 0);  # "5.00"
+    $a->format(thousands_separator => '');  # "5.00 USD"
+
     # Arithmetic
     my $sum    = $a->add($b);            # 750 USD
     my $dif    = $a->subtract($b);       # 250 USD
@@ -287,9 +351,6 @@ Coin::Hnoss::Money - Immutable monetary value object
     my $hundred = Coin::Hnoss::Money->new(100, 'USD');
     my @parts   = $hundred->allocate(1, 1, 1);
     # (34 USD, 33 USD, 33 USD) — sums to 100 USD exactly
-
-    my @by_pct = $hundred->allocate([70, 20, 10]);
-    # (70 USD, 20 USD, 10 USD)
 
 =head1 DESCRIPTION
 
@@ -318,7 +379,53 @@ Returns the C<Coin::Hnoss::Currency> object.
 
 =head2 as_string
 
-Returns C<< "<amount> <code>" >>, e.g. C<"500 USD">.
+Returns C<< "<amount> <code>" >>, e.g. C<"500 USD">. This is the raw
+canonical form (integer amount, then code). For human-facing output use
+C<format>.
+
+=head2 format
+
+    my $s = $money->format;
+    my $s = $money->format(%options);
+
+Returns a formatted string. The amount is rendered using the currency's
+minor-unit exponent (2 for USD, 0 for JPY, 3 for BHD) with no floating
+point arithmetic.
+
+Options (all optional, all defaulted):
+
+=over
+
+=item C<with_currency> - boolean, default true. Include the 3-letter code.
+
+=item C<currency_separator> - string between amount and code, default C<' '>.
+
+=item C<decimal_mark> - decimal separator, default C<'.'>.
+
+=item C<thousands_separator> - integer grouping separator, default C<','>.
+Pass C<''> to disable grouping.
+
+=item C<group_size> - digits per group, default 3. Must be a positive
+integer.
+
+=back
+
+Examples:
+
+    Money->new(   500, 'USD')->format;   # "5.00 USD"
+    Money->new(     0, 'USD')->format;   # "0.00 USD"
+    Money->new(    -5, 'USD')->format;   # "-0.05 USD"
+    Money->new(123456, 'USD')->format;   # "1,234.56 USD"
+    Money->new(   500, 'JPY')->format;   # "500 JPY"
+    Money->new(  1234, 'JPY')->format;   # "1,234 JPY"
+    Money->new(   500, 'BHD')->format;   # "0.500 BHD"
+
+    Money->new(500, 'USD')->format(with_currency => 0);  # "5.00"
+
+    Money->new(123456, 'USD')->format(
+        with_currency       => 0,
+        thousands_separator => '',
+    );                                    # "1234.56"
 
 =head2 equals
 
@@ -396,34 +503,17 @@ is element-wise the negation of
 
     Money->new( x, 'USD')->allocate(@ratios)
 
-Examples:
-
-    Money->new(100, 'USD')->allocate(1, 1, 1)
-        # 34 USD, 33 USD, 33 USD
-
-    Money->new(100, 'USD')->allocate(70, 20, 10)
-        # 70 USD, 20 USD, 10 USD
-
-    Money->new(101, 'USD')->allocate(1, 1, 1)
-        # 34 USD, 34 USD, 33 USD
-
-    Money->new(-100, 'USD')->allocate(1, 1, 1)
-        # -34 USD, -33 USD, -33 USD
-
-    Money->new(-101, 'USD')->allocate(1, 1, 1)
-        # -34 USD, -34 USD, -33 USD
-
-Ratios must be integers >= 0. Not all of them may be zero. Negative
-ratios, non-integers, and an empty ratio list raise
-L<Coin::Hnoss::Exception>.
+Ratios must be integers >= 0. Not all of them may be zero.
 
 =head1 OPERATORS
 
 =over
 
-=item * String context (C<"$m">) yields C<as_string()>.
+=item * String context (C<"$m">) yields C<as_string()>, not C<format()>.
+This is deliberate: C<"$m"> is the canonical, unambiguous serialization;
+use C<format> for display.
 
-=item * C<eq> / C<ne> compare string forms.
+=item * C<eq> / C<ne> compare string forms (i.e. C<as_string>).
 
 =item * C<< <=> >>, C<==>, C<!=>, C<< < >>, C<< > >>, C<< <= >>, C<< >= >>
 compare amounts and B<require the same currency>.
@@ -432,7 +522,7 @@ compare amounts and B<require the same currency>.
 
 =head1 ERRORS
 
-Arithmetic, comparison, and allocation errors die with a
+Arithmetic, comparison, allocation, and formatting errors die with a
 L<Coin::Hnoss::Exception>.
 
 =head1 LICENSE
