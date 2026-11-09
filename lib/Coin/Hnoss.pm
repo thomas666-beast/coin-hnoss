@@ -2,7 +2,7 @@ package Coin::Hnoss;
 use strict;
 use warnings;
 
-our $VERSION = '0.001';
+our $VERSION = '0.003';
 
 1;
 __END__

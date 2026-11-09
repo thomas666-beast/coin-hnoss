@@ -1,5 +1,8 @@
 Revision history for Coin::Hnoss
 
+0.003  2026-11-09
+       - Add Coin::Hnoss::Money (immutable amount + currency value object).
+
 0.002  2026-11-09
        - Add Coin::Hnoss::Currency (ISO 4217 code value object).
 
