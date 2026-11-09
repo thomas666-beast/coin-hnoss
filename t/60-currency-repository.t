@@ -4,6 +4,7 @@ use Test::More;
 
 use_ok('Coin::Hnoss::Currency::Repository');
 use_ok('Coin::Hnoss::Currency');
+use_ok('Coin::Hnoss::Money');
 
 # --- default singleton -------------------------------------------------------
 
@@ -24,9 +25,13 @@ is($repo->exponent('BHD'), 3, 'BHD exponent 3');
 is($repo->exponent('KWD'), 3, 'KWD exponent 3');
 is($repo->exponent('UYW'), 4, 'UYW exponent 4');
 
+# Non-ISO extension
+is($repo->exponent('BTC'), 8, 'BTC exponent 8 (non-ISO, documented extension)');
+
 # Case insensitive on input
 is($repo->exponent('usd'), 2, 'exponent is case-insensitive');
 is($repo->exponent('Jpy'), 0, 'exponent is case-insensitive');
+is($repo->exponent('btc'), 8, 'BTC lookup is case-insensitive');
 
 # --- fallback ----------------------------------------------------------------
 
@@ -52,6 +57,8 @@ ok( $repo->knows('USD'),  'knows USD');
 ok( $repo->knows('usd'),  'knows usd (case-insensitive)');
 ok( $repo->knows('JPY'),  'knows JPY');
 ok( $repo->knows('BHD'),  'knows BHD');
+ok( $repo->knows('BTC'),  'knows BTC (non-ISO extension)');
+ok( $repo->knows('btc'),  'knows btc (case-insensitive)');
 ok(!$repo->knows('ZZZ'),  'does not know ZZZ');
 ok(!$repo->knows(undef),  'does not know undef');
 ok(!$repo->knows([]),     'does not know arrayref');
@@ -96,6 +103,7 @@ ok(scalar(@codes) > 100, 'all_codes returns > 100 codes');
 is_deeply([@codes], [sort @codes], 'all_codes is sorted');
 ok((grep { $_ eq 'USD' } @codes), 'all_codes includes USD');
 ok((grep { $_ eq 'JPY' } @codes), 'all_codes includes JPY');
+ok((grep { $_ eq 'BTC' } @codes), 'all_codes includes BTC');
 
 # --- Currency->exponent delegates to default repository ----------------------
 
@@ -103,11 +111,26 @@ is(Coin::Hnoss::Currency->new('USD')->exponent, 2, 'Currency->exponent USD');
 is(Coin::Hnoss::Currency->new('JPY')->exponent, 0, 'Currency->exponent JPY');
 is(Coin::Hnoss::Currency->new('BHD')->exponent, 3, 'Currency->exponent BHD');
 is(Coin::Hnoss::Currency->new('UYW')->exponent, 4, 'Currency->exponent UYW');
+is(Coin::Hnoss::Currency->new('BTC')->exponent, 8, 'Currency->exponent BTC');
 is(Coin::Hnoss::Currency->new('ZZZ')->exponent, 2,
    'Currency->exponent unknown falls back to 2');
 
 # subunit is an alias
 is(Coin::Hnoss::Currency->new('USD')->subunit, 2, 'Currency->subunit USD');
 is(Coin::Hnoss::Currency->new('JPY')->subunit, 0, 'Currency->subunit JPY');
+is(Coin::Hnoss::Currency->new('BTC')->subunit, 8, 'Currency->subunit BTC');
+
+# --- BTC integrates cleanly with Money format/from_string --------------------
+# 1 BTC = 100_000_000 satoshi.
+# 500 satoshi = 0.00000500 BTC (exponent 8).
+
+my $sats = Coin::Hnoss::Money->new(500, 'BTC');
+is($sats->format, '0.00000500 BTC', '500 satoshi formats as 0.00000500 BTC');
+
+my $back = Coin::Hnoss::Money->from_string('0.00000500', 'BTC');
+is($back->as_string, '500 BTC', '0.00000500 BTC round-trips to 500 satoshi');
+
+is(Coin::Hnoss::Money->new(100_000_000, 'BTC')->format,
+   '1.00000000 BTC', '1 BTC formats as 1.00000000 BTC');
 
 done_testing;

@@ -1,25 +1,39 @@
 Revision history for Coin::Hnoss
 
+0.010  2026-11-09
+       - Documentation release: README, CONTRIBUTING, LICENSE, complete
+         POD across all modules. No API changes.
+       - Add META_MERGE provides metadata to Makefile.PL.
+       - Add BTC (Bitcoin, exponent 8, satoshi) to the default currency
+         repository as a documented non-ISO extension. Everything else in
+         the table remains strictly ISO 4217 (or ISO 4217 historical /
+         metatokens).
+
 0.009  2026-11-09
        - Add Coin::Hnoss::Money->from_string, parsing major-unit strings
-         into minor-unit Money using the currency''s exponent. Strict about
-         precision: too many decimal digits is an error, never a silent
-         round. Options mirror format (decimal_mark, thousands_separator,
-         group_size).
+         into minor-unit Money using the currency''s exponent. Strict
+         about precision: too many decimal digits is an error, never a
+         silent round. Options mirror format (decimal_mark,
+         thousands_separator, group_size).
 
 0.008  2026-11-09
-       - Add Coin::Hnoss::Money->format.
+       - Add Coin::Hnoss::Money->format, using the currency''s minor-unit
+         exponent with configurable decimal mark, thousands separator,
+         group size, currency inclusion, and currency separator.
 
 0.007_01 2026-11-09
-       - Fix Currency::Repository->default: replace invalid `state` with a
-         file-scoped lexical.
+       - Fix Currency::Repository->default: replace invalid `state` with
+         a file-scoped lexical.
 
 0.007  2026-11-09
-       - Add Coin::Hnoss::Currency::Repository.
+       - Add Coin::Hnoss::Currency::Repository with built-in ISO 4217
+         exponents.
        - Add Coin::Hnoss::Currency->exponent and ->subunit.
 
 0.006_02 2026-11-09
-       - Fix allocate: allocate on |amount| then negate.
+       - Fix allocate: allocate on |amount| then negate, so that
+         allocate(-x, ...) is the element-wise negation of
+         allocate(x, ...).
 
 0.006  2026-11-09
        - Add Coin::Hnoss::Money->allocate.

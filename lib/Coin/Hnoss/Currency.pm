@@ -2,7 +2,7 @@ package Coin::Hnoss::Currency;
 use strict;
 use warnings;
 
-our $VERSION = '0.007';
+our $VERSION = '0.010';
 
 use Carp qw(croak);
 

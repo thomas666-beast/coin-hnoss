@@ -9,5 +9,6 @@
 ^pm_to_blib$
 ^\.gitignore$
 ^cpanfile$
-^README\.md$
-^LICENSE$
+^MANIFEST$
+^MANIFEST\.SKIP$
+^Coin-Hnoss-.*\.tar\.gz$

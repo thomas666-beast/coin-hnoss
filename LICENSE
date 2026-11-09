@@ -1,0 +1,25 @@
+This software is copyright (c) 2026 by Thomas.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+Terms of the Perl 5 programming language system:
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of either:
+
+        a) the GNU General Public License as published by the Free
+           Software Foundation; either version 1, or (at your option) any
+           later version, or
+
+        b) the "Artistic License".
+
+    For the full text of both licenses, see:
+
+        https://dev.perl.org/licenses/gpl1.html
+        https://dev.perl.org/licenses/artistic.html
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License and the Artistic License for more details.

@@ -2,7 +2,7 @@ package Coin::Hnoss::Currency::Repository;
 use strict;
 use warnings;
 
-our $VERSION = '0.007_01';
+our $VERSION = '0.010';
 
 use Carp qw(croak);
 
@@ -53,7 +53,7 @@ my %ISO_4217 = (
     XXX => 0,
 );
 
-# Historical / deprecated codes that still show up in legacy data.
+# Historical / deprecated ISO 4217 codes that still show up in legacy data.
 my %HISTORICAL = (
     BYR => 0,  # Belarusian ruble (old), before BYN
     MRO => 1,  # Mauritanian ouguiya, before MRU; had 5 khoums
@@ -64,7 +64,13 @@ my %HISTORICAL = (
     ZWD => 2,  # older Zimbabwe dollar
 );
 
-my %DEFAULT_TABLE = (%ISO_4217, %HISTORICAL);
+# Documented non-ISO extensions. Kept deliberately small and explicit:
+# anything in here is a conscious departure from "strictly ISO 4217".
+my %NON_ISO = (
+    BTC => 8,  # Bitcoin, smallest unit = satoshi (1 BTC = 100_000_000 sat)
+);
+
+my %DEFAULT_TABLE = (%ISO_4217, %HISTORICAL, %NON_ISO);
 
 # File-scoped singleton for ->default. Plain `my`, not `state`, so we don't
 # depend on any feature pragma.
@@ -145,9 +151,11 @@ Coin::Hnoss::Currency::Repository - ISO 4217 currency metadata
     $repo->exponent('USD');   # 2
     $repo->exponent('JPY');   # 0
     $repo->exponent('BHD');   # 3
+    $repo->exponent('BTC');   # 8  (non-ISO, documented extension)
     $repo->exponent('ZZZ');   # 2  (fallback)
 
     $repo->knows('USD');      # 1
+    $repo->knows('BTC');      # 1
     $repo->knows('ZZZ');      # '' (false)
 
     # Custom table (useful in tests)
@@ -156,12 +164,32 @@ Coin::Hnoss::Currency::Repository - ISO 4217 currency metadata
 
 =head1 DESCRIPTION
 
-Provides minor-unit (subunit) exponent information for ISO 4217 currencies.
-The default repository ships with a hard-coded table of active and
-historical codes, so no filesystem, network, or JSON parser is required.
+Provides minor-unit (subunit) exponent information for currencies. The
+default repository ships with a hard-coded table, so no filesystem,
+network, or JSON parser is required.
 
 Exponent means "how many digits after the decimal point": USD has exponent
-2 (cents), JPY has exponent 0 (yen), BHD has exponent 3 (fils).
+2 (cents), JPY has exponent 0 (yen), BHD has exponent 3 (fils), BTC has
+exponent 8 (satoshi).
+
+The table covers:
+
+=over
+
+=item * B<Active ISO 4217 currencies> (USD, EUR, JPY, BHD, ...).
+
+=item * B<ISO 4217 metatokens> (XAU, XAG, XDR, XTS, XXX, ...).
+
+=item * B<Historical ISO 4217 codes> still common in legacy data
+(BYR, MRO, STD, VEF, ZWL, ...).
+
+=item * B<One documented non-ISO extension>: C<BTC> (Bitcoin), exponent
+8, where the smallest unit is the satoshi (1 BTC = 100,000,000 sat).
+This is the sole departure from "strictly ISO 4217"; it is included
+because it is the one non-ISO code that appears with enough frequency
+in real Perl applications to justify a built-in entry.
+
+=back
 
 Unknown codes fall back to exponent 2 (the overwhelmingly most common
 value, and what most money libraries use by default). Use
