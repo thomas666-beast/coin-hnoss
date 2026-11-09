@@ -4,10 +4,23 @@ Revision history for Coin::Hnoss
        - Documentation release: README, CONTRIBUTING, LICENSE, complete
          POD across all modules. No API changes.
        - Add META_MERGE provides metadata to Makefile.PL.
-       - Add BTC (Bitcoin, exponent 8, satoshi) to the default currency
-         repository as a documented non-ISO extension. Everything else in
-         the table remains strictly ISO 4217 (or ISO 4217 historical /
-         metatokens).
+
+       - Currency repository:
+         * Add BTC (Bitcoin, exponent 8 = satoshi), TRX (TRON, exponent
+           6 = sun), and USDT (Tether USD, exponent 6, on both TRC20
+           and ERC20) to the default repository as documented non-ISO
+           extensions. Everything else in the table remains strictly
+           ISO 4217 (or ISO 4217 historical / metatokens).
+         * Relax Coin::Hnoss::Currency code validation from "exactly 3
+           uppercase letters" to "3 to 8 ASCII letters", so longer
+           non-ISO codes like USDT are accepted. Same relaxation in
+           Currency::Repository->new. Error messages updated from
+           "Invalid ISO 4217 currency code" to "Invalid currency code:
+           must be 3-8 ASCII letters". All ISO 4217 codes still work
+           unchanged.
+         * Tests updated accordingly: USDD, USDX, USDT, WBTC, SHIB,
+           AVAX are now valid; 9+ character codes and non-letter
+           characters remain rejected.
 
 0.009  2026-11-09
        - Add Coin::Hnoss::Money->from_string, parsing major-unit strings
@@ -39,18 +52,23 @@ Revision history for Coin::Hnoss
        - Add Coin::Hnoss::Money->allocate.
 
 0.005  2026-11-09
-       - Add comparison and predicates to Coin::Hnoss::Money.
+       - Add comparison and predicates to Coin::Hnoss::Money:
+         compare, is_zero, is_positive, is_negative, greater_than,
+         greater_or_equal, less_than, less_or_equal.
        - Overload <=>, ==, !=, <, >, <=, >= to use compare.
 
 0.004_01 2026-11-09
-       - Document floor semantics for divide / divide_with_remainder.
+       - Document floor semantics for divide / divide_with_remainder
+         (matching Math::BigInt::bdiv and Python''s divmod).
 
 0.004  2026-11-09
        - Add Coin::Hnoss::Exception base class.
-       - Add arithmetic to Coin::Hnoss::Money.
+       - Add arithmetic to Coin::Hnoss::Money: add, subtract, multiply,
+         divide, divide_with_remainder, negate, abs.
 
 0.003  2026-11-09
-       - Add Coin::Hnoss::Money (immutable amount + currency value object).
+       - Add Coin::Hnoss::Money (immutable amount + currency value
+         object).
 
 0.002  2026-11-09
        - Add Coin::Hnoss::Currency (ISO 4217 code value object).
