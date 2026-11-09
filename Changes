@@ -1,4 +1,7 @@
 Revision history for Coin::Hnoss
 
+0.002  2026-11-09
+       - Add Coin::Hnoss::Currency (ISO 4217 code value object).
+
 0.001  2026-11-09
        - Initial skeleton.
